@@ -1,4 +1,4 @@
-use axum::{routing::get, Extension, Router};
+use axum::{extract::State, routing::get, Router};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use vivs::Client;
@@ -9,15 +9,17 @@ struct AppState {
 
 type SharedState = Arc<RwLock<AppState>>;
 
-async fn get_handler(Extension(state): Extension<SharedState>) -> String {
-    let mut l = state.write().await;
-    let cache = &mut l.cache;
+async fn get_handler(State(state): State<SharedState>) -> String {
+    let mut app_state = state.write().await;
+
+    let cache = &mut app_state.cache;
     let value = cache.get("name".to_owned()).await;
+
     if let Some(cached_value) = value {
-        cached_value
-    } else {
-        "No value".to_owned()
+        return cached_value;
     }
+
+    "No value".to_owned()
 }
 
 #[tokio::main]
@@ -29,7 +31,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(get_handler))
-        .layer(Extension(app_state));
+        .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
