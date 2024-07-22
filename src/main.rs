@@ -1,4 +1,5 @@
-use axum::{extract::State, routing::get, Router};
+use axum::{extract::State, routing::get, Json, Router};
+use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use vivs::Client;
@@ -9,17 +10,17 @@ struct AppState {
 
 type SharedState = Arc<RwLock<AppState>>;
 
-async fn get_handler(State(state): State<SharedState>) -> String {
+async fn get_handler(State(state): State<SharedState>) -> Json<Value> {
     let mut app_state = state.write().await;
 
     let cache = &mut app_state.cache;
     let value = cache.get("name".to_owned()).await;
 
     if let Some(cached_value) = value {
-        return cached_value;
+        return Json(json!({ "name": cached_value }));
     }
 
-    "No value".to_owned()
+    Json(json!({ "name": "" }))
 }
 
 #[tokio::main]
