@@ -1,4 +1,10 @@
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::Response,
+    routing::{delete, get},
+    Json, Router,
+};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -23,6 +29,15 @@ async fn get_handler(State(state): State<SharedState>) -> Json<Value> {
     Json(json!({ "name": "" }))
 }
 
+async fn delete_handler(State(state): State<SharedState>) -> Response {
+    let mut app_state = state.write().await;
+
+    let cache = &mut app_state.cache;
+    let value = cache.delete("name".to_owned()).await;
+
+    Response::default()
+}
+
 #[tokio::main]
 async fn main() {
     let vivs_client = Client::new().await;
@@ -32,6 +47,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(get_handler))
+        .route("/", delete(delete_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
